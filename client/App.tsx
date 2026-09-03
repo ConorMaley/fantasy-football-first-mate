@@ -1,12 +1,13 @@
 import { StatusBar } from "expo-status-bar";
 
-import { HealthCheckScreen } from "./src/screens/HealthCheckScreen";
+import { SessionProvider } from "./src/auth/SessionContext";
+import { RootNavigator } from "./src/navigation/RootNavigator";
 
 export default function App() {
   return (
-    <>
-      <HealthCheckScreen />
+    <SessionProvider>
+      <RootNavigator />
       <StatusBar style="auto" />
-    </>
+    </SessionProvider>
   );
 }
