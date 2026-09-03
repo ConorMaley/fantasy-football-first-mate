@@ -1,0 +1,376 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Platform {
+  ESPN
+  YAHOO
+  SLEEPER
+}
+
+enum Position {
+  QB
+  RB
+  WR
+  TE
+  K
+  DST
+}
+
+enum TransactionType {
+  ADD
+  DROP
+  TRADE
+  WAIVER_CLAIM
+  COMMISSIONER
+}
+
+enum TransactionItemAction {
+  ADDED
+  DROPPED
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  displayName String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  leagueLinks       LeagueLink[]
+  createdLeagues    League[]       @relation("LeagueCreatedBy")
+  leagueMemberships LeagueMember[]
+  crewmates         Crewmate[]     @relation("CrewmateOwner")
+  crewmateOf        Crewmate[]     @relation("CrewmateUser")
+  leagueGroups      LeagueGroup[]
+}
+
+/// A user's connection to a fantasy platform (ESPN/Yahoo/Sleeper), used to
+/// authenticate league syncs on their behalf. Platform-specific credentials
+/// live on the linked Espn/Yahoo/SleeperLeagueLink row.
+model LeagueLink {
+  id        String   @id @default(cuid())
+  platform  Platform
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  leagues League[]
+
+  espn    EspnLeagueLink?
+  yahoo   YahooLeagueLink?
+  sleeper SleeperLeagueLink?
+
+  @@unique([userId, platform])
+}
+
+/// ESPN auth for private leagues: the `swid` and `espn_s2` cookie values
+/// captured from a logged-in ESPN session.
+model EspnLeagueLink {
+  id     String @id @default(cuid())
+  swid   String
+  espnS2 String
+
+  leagueLinkId String     @unique
+  leagueLink   LeagueLink @relation(fields: [leagueLinkId], references: [id], onDelete: Cascade)
+}
+
+/// Yahoo auth via OAuth 2.0.
+model YahooLeagueLink {
+  id             String   @id @default(cuid())
+  externalUserId String?
+  accessToken    String
+  refreshToken   String
+  expiresAt      DateTime
+
+  leagueLinkId String     @unique
+  leagueLink   LeagueLink @relation(fields: [leagueLinkId], references: [id], onDelete: Cascade)
+}
+
+/// Sleeper has no auth — leagues are fetched publicly by username/user id.
+model SleeperLeagueLink {
+  id               String @id @default(cuid())
+  externalUsername String
+  externalUserId   String
+
+  leagueLinkId String     @unique
+  leagueLink   LeagueLink @relation(fields: [leagueLinkId], references: [id], onDelete: Cascade)
+}
+
+/// A league added to the app, synced from a platform. leagueLink is nullable
+/// because public leagues (mainly ESPN) don't require stored credentials.
+model League {
+  id               String   @id @default(cuid())
+  platform         Platform
+  externalLeagueId String
+  name             String
+  season           Int
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  createdById String
+  createdBy   User   @relation("LeagueCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  leagueLinkId String?
+  leagueLink   LeagueLink? @relation(fields: [leagueLinkId], references: [id], onDelete: SetNull)
+
+  leagueGroupId String?
+  leagueGroup   LeagueGroup? @relation(fields: [leagueGroupId], references: [id], onDelete: SetNull)
+
+  members      LeagueMember[]
+  matchups     Matchup[]
+  transactions Transaction[]
+
+  @@unique([createdById, platform, externalLeagueId, season])
+}
+
+/// Ties together the League rows that represent the same real-world league
+/// across different seasons (and potentially different platforms, if a
+/// league migrated from e.g. Yahoo to Sleeper). Grouping is manual and
+/// owned by one User, same as Crewmate — the same set of League rows could
+/// be grouped differently by different owners.
+model LeagueGroup {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  leagues League[]
+}
+
+/// A roster/owner slot within a League, as reported by the platform. Not
+/// every member has a First Mate account yet — userId is set once this
+/// member is matched/invited (see the crewmate-mapping user journey).
+model LeagueMember {
+  id                  String   @id @default(cuid())
+  teamId              String
+  teamName            String?
+  externalDisplayName String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  leagueId String
+  league   League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  roster           Roster?
+  standing         Standing?
+  rosterMatchups   RosterMatchup[]
+  transactionItems TransactionItem[]
+  crewmateLinks    CrewmateLeagueMember[]
+
+  @@unique([leagueId, teamId])
+}
+
+/// A player in the global player pool, shared across all leagues/platforms.
+/// Platform-specific ids are mapped via PlayerExternalId (the "player ID
+/// mapper" from the README) so the same real athlete resolves to one row
+/// regardless of which platform a league is synced from.
+model Player {
+  id        String   @id @default(cuid())
+  fullName  String
+  position  Position
+  nflTeam   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  externalIds        PlayerExternalId[]
+  rosterSlots        RosterSlot[]
+  rosterMatchupSlots RosterMatchupSlot[]
+  transactionItems   TransactionItem[]
+}
+
+model PlayerExternalId {
+  id         String   @id @default(cuid())
+  platform   Platform
+  externalId String
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([platform, externalId])
+}
+
+/// The current active roster for a team in an active league — not a
+/// historical record. Per-week lineups (starters/bench at matchup time)
+/// live on RosterMatchup/RosterMatchupSlot instead.
+model Roster {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leagueMemberId String       @unique
+  leagueMember   LeagueMember @relation(fields: [leagueMemberId], references: [id], onDelete: Cascade)
+
+  slots RosterSlot[]
+}
+
+model RosterSlot {
+  id         String  @id @default(cuid())
+  lineupSlot String
+  isStarter  Boolean @default(true)
+
+  rosterId String
+  roster   Roster @relation(fields: [rosterId], references: [id], onDelete: Cascade)
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([rosterId, playerId])
+}
+
+/// A team's current cumulative record within a league. Updated in place as
+/// the season progresses, not a week-by-week history.
+model Standing {
+  id            String   @id @default(cuid())
+  wins          Int      @default(0)
+  losses        Int      @default(0)
+  ties          Int      @default(0)
+  pointsFor     Float    @default(0)
+  pointsAgainst Float    @default(0)
+  rank          Int?
+  streak        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  leagueMemberId String       @unique
+  leagueMember   LeagueMember @relation(fields: [leagueMemberId], references: [id], onDelete: Cascade)
+}
+
+/// A single week's matchup within a league. Each side's roster/score is its
+/// own RosterMatchup row — awayTeam is absent for a bye week.
+model Matchup {
+  id        String   @id @default(cuid())
+  week      Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leagueId String
+  league   League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  rosterMatchups RosterMatchup[]
+
+  @@index([leagueId, week])
+}
+
+/// One team's participation in a Matchup: their score, projected score, and
+/// (via RosterMatchupSlot) exactly which players started vs. sat the bench
+/// that week.
+model RosterMatchup {
+  id             String   @id @default(cuid())
+  score          Float?
+  projectedScore Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  matchupId String
+  matchup   Matchup @relation(fields: [matchupId], references: [id], onDelete: Cascade)
+
+  leagueMemberId String
+  leagueMember   LeagueMember @relation(fields: [leagueMemberId], references: [id], onDelete: Cascade)
+
+  slots RosterMatchupSlot[]
+
+  @@unique([matchupId, leagueMemberId])
+}
+
+model RosterMatchupSlot {
+  id              String  @id @default(cuid())
+  lineupSlot      String
+  isStarter       Boolean
+  points          Float?
+  projectedPoints Float?
+
+  rosterMatchupId String
+  rosterMatchup   RosterMatchup @relation(fields: [rosterMatchupId], references: [id], onDelete: Cascade)
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([rosterMatchupId, playerId])
+}
+
+/// An add/drop/trade/waiver/commissioner move. Player movements live on
+/// TransactionItem so a trade (multiple players, multiple teams) is just
+/// several items under one Transaction.
+model Transaction {
+  id          String          @id @default(cuid())
+  type        TransactionType
+  externalId  String?
+  processedAt DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  leagueId String
+  league   League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  items TransactionItem[]
+
+  @@unique([leagueId, externalId])
+}
+
+model TransactionItem {
+  id     String                @id @default(cuid())
+  action TransactionItemAction
+
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  leagueMemberId String?
+  leagueMember   LeagueMember? @relation(fields: [leagueMemberId], references: [id], onDelete: SetNull)
+}
+
+/// A contact-list entry owned by one User (the "owner"). A Crewmate does not
+/// require the other person to have a First Mate account: userId is only
+/// set once they're matched/invited and sign up. Until then (and even
+/// after), CrewmateLeagueMember links this Crewmate to every LeagueMember
+/// that represents them, across leagues/platforms/seasons, so their history
+/// can be grouped under one identity.
+model Crewmate {
+  id          String   @id @default(cuid())
+  displayName String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation("CrewmateOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation("CrewmateUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  leagueMembers CrewmateLeagueMember[]
+
+  @@unique([ownerId, userId])
+}
+
+/// Tags one LeagueMember (a team/owner slot in some league) as being this
+/// Crewmate. Many-to-many: the same LeagueMember can be tagged by several
+/// different owners (each maintains their own crew independently), and the
+/// same Crewmate can span many LeagueMembers over time.
+model CrewmateLeagueMember {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  crewmateId String
+  crewmate   Crewmate @relation(fields: [crewmateId], references: [id], onDelete: Cascade)
+
+  leagueMemberId String
+  leagueMember   LeagueMember @relation(fields: [leagueMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([crewmateId, leagueMemberId])
+}

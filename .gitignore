@@ -1,0 +1,37 @@
+# dependencies
+node_modules/
+
+# env
+.env
+.env.local
+
+# build output
+dist/
+build/
+
+# expo
+.expo/
+.expo-shared/
+web-build/
+
+# native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# logs
+*.log
+npm-debug.log*
+
+# os
+.DS_Store
+
+# editors
+.vscode/
+.idea/
+
+# prisma
+server/prisma/migrations/dev.db
