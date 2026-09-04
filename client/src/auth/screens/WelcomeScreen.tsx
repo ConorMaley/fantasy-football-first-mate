@@ -1,16 +1,15 @@
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useRouter } from "expo-router";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
+import { Button, Text, TextInput } from "react-native-paper";
 
 import { ApiError, apiPost } from "../../api/client";
 import { useSession, type AuthResponse } from "../SessionContext";
-import type { AuthStackParamList } from "../types";
 import { useGoogleSignIn } from "../useGoogleSignIn";
 
-type Props = NativeStackScreenProps<AuthStackParamList, "Welcome">;
-
-export function WelcomeScreen({ navigation }: Props) {
+export function WelcomeScreen() {
+  const router = useRouter();
   const { applySession } = useSession();
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
@@ -21,13 +20,13 @@ export function WelcomeScreen({ navigation }: Props) {
     setBusy(true);
     try {
       await apiPost("/auth/otp/request", { email }, { skipAuth: true });
-      navigation.navigate("OtpEntry", { email });
+      router.push({ pathname: "/otp", params: { email } });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
     } finally {
       setBusy(false);
     }
-  }, [email, navigation]);
+  }, [email, router]);
 
   const handleGoogleIdToken = useCallback(
     async (idToken: string) => {
@@ -83,12 +82,14 @@ export function WelcomeScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Fantasy Football First Mate</Text>
+      <Text variant="headlineMedium" style={styles.title}>
+        Fantasy Football First Mate
+      </Text>
       <Text style={styles.subtitle}>Enter your email to sign up or log in</Text>
 
       <TextInput
-        style={styles.input}
-        placeholder="you@example.com"
+        mode="outlined"
+        label="Email"
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
@@ -98,26 +99,19 @@ export function WelcomeScreen({ navigation }: Props) {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable style={styles.primaryButton} onPress={handleContinueWithEmail} disabled={busy || !email}>
-        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Continue</Text>}
-      </Pressable>
+      <Button mode="contained" onPress={handleContinueWithEmail} loading={busy} disabled={busy || !email}>
+        Continue
+      </Button>
 
-      <Pressable
-        style={styles.link}
-        onPress={() => navigation.navigate("PasswordEntry", { email: email || undefined })}
-      >
-        <Text style={styles.linkText}>Have a password? Log in with password</Text>
-      </Pressable>
+      <Button mode="text" onPress={() => router.push({ pathname: "/password", params: { email } })}>
+        Have a password? Log in with password
+      </Button>
 
       <View style={styles.divider} />
 
-      <Pressable
-        style={styles.secondaryButton}
-        onPress={() => promptGoogle()}
-        disabled={!googleReady || busy}
-      >
-        <Text style={styles.secondaryButtonText}>Continue with Google</Text>
-      </Pressable>
+      <Button mode="outlined" onPress={() => promptGoogle()} disabled={!googleReady || busy}>
+        Continue with Google
+      </Button>
 
       {Platform.OS === "ios" ? (
         <AppleAuthentication.AppleAuthenticationButton
@@ -134,22 +128,9 @@ export function WelcomeScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", justifyContent: "center", padding: 24, gap: 12 },
-  title: { fontSize: 22, fontWeight: "700", textAlign: "center" },
+  title: { textAlign: "center" },
   subtitle: { fontSize: 14, color: "#555", textAlign: "center", marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, fontSize: 16 },
-  error: { color: "#c0392b", fontSize: 13 },
-  primaryButton: { backgroundColor: "#1d4ed8", borderRadius: 8, padding: 14, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
-  link: { alignItems: "center", padding: 8 },
-  linkText: { color: "#1d4ed8", fontSize: 13 },
+  error: { color: "#B3261E", fontSize: 13 },
   divider: { height: 1, backgroundColor: "#eee", marginVertical: 8 },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-  },
-  secondaryButtonText: { fontSize: 16, fontWeight: "500" },
   appleButton: { height: 48, marginTop: 8 },
 });

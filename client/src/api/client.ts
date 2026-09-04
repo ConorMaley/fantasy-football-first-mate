@@ -27,7 +27,7 @@ export function configureApiClient(config: { getAccessToken: TokenGetter; refres
 }
 
 interface RequestOptions {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
   /** Skip attaching/refreshing the access token — used for the auth endpoints themselves. */
   skipAuth?: boolean;
@@ -78,3 +78,5 @@ export const apiPost = <T>(path: string, body?: unknown, options?: { skipAuth?: 
 
 export const apiPatch = <T>(path: string, body?: unknown): Promise<T> =>
   apiRequest<T>(path, { method: "PATCH", body });
+
+export const apiDelete = <T>(path: string): Promise<T> => apiRequest<T>(path, { method: "DELETE" });

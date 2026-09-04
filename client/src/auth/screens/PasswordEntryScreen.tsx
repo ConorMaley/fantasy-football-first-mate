@@ -1,18 +1,18 @@
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
+import { Button, Text, TextInput } from "react-native-paper";
 
 import { ApiError, apiPost } from "../../api/client";
 import { useSession, type AuthResponse } from "../SessionContext";
-import type { AuthStackParamList } from "../types";
-
-type Props = NativeStackScreenProps<AuthStackParamList, "PasswordEntry">;
 
 type Mode = "login" | "signup";
 
-export function PasswordEntryScreen({ route, navigation }: Props) {
+export function PasswordEntryScreen() {
+  const params = useLocalSearchParams<{ email?: string }>();
+  const router = useRouter();
   const { applySession } = useSession();
-  const [email, setEmail] = useState(route.params?.email ?? "");
+  const [email, setEmail] = useState(params.email ?? "");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<Mode>("login");
   const [busy, setBusy] = useState(false);
@@ -37,58 +37,40 @@ export function PasswordEntryScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{mode === "login" ? "Log in" : "Create your account"}</Text>
+      <Text variant="headlineMedium" style={styles.title}>
+        {mode === "login" ? "Log in" : "Create your account"}
+      </Text>
 
       <TextInput
-        style={styles.input}
-        placeholder="you@example.com"
+        mode="outlined"
+        label="Email"
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+      <TextInput mode="outlined" label="Password" secureTextEntry value={password} onChangeText={setPassword} />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable style={styles.primaryButton} onPress={handleSubmit} disabled={busy || !email || !password}>
-        {busy ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.primaryButtonText}>{mode === "login" ? "Log in" : "Create account"}</Text>
-        )}
-      </Pressable>
+      <Button mode="contained" onPress={handleSubmit} loading={busy} disabled={busy || !email || !password}>
+        {mode === "login" ? "Log in" : "Create account"}
+      </Button>
 
-      <Pressable style={styles.link} onPress={() => setMode(mode === "login" ? "signup" : "login")}>
-        <Text style={styles.linkText}>
-          {mode === "login" ? "New here? Create an account" : "Already have an account? Log in"}
-        </Text>
-      </Pressable>
+      <Button mode="text" onPress={() => setMode(mode === "login" ? "signup" : "login")}>
+        {mode === "login" ? "New here? Create an account" : "Already have an account? Log in"}
+      </Button>
 
-      <Pressable
-        style={styles.link}
-        onPress={() => navigation.navigate("Welcome")}
-      >
-        <Text style={styles.linkText}>Forgot your password? Log in with a code instead</Text>
-      </Pressable>
+      <Button mode="text" onPress={() => router.push("/welcome")}>
+        Forgot your password? Log in with a code instead
+      </Button>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", justifyContent: "center", padding: 24, gap: 12 },
-  title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, fontSize: 16 },
-  error: { color: "#c0392b", fontSize: 13 },
-  primaryButton: { backgroundColor: "#1d4ed8", borderRadius: 8, padding: 14, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
-  link: { alignItems: "center", padding: 8 },
-  linkText: { color: "#1d4ed8", fontSize: 13 },
+  title: { textAlign: "center", marginBottom: 8 },
+  error: { color: "#B3261E", fontSize: 13 },
 });

@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Button, Text, TextInput } from "react-native-paper";
 
 import { ApiError, apiPatch } from "../../api/client";
 import { useSession, type SessionUser } from "../SessionContext";
@@ -26,26 +27,25 @@ export function OnboardingNameScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>What should we call you?</Text>
+      <Text variant="headlineMedium" style={styles.title}>
+        What should we call you?
+      </Text>
       <Text style={styles.subtitle}>This is shown to your leaguemates and Crewmates.</Text>
 
-      <TextInput style={styles.input} placeholder="Your name" value={name} onChangeText={setName} autoFocus />
+      <TextInput mode="outlined" label="Your name" value={name} onChangeText={setName} autoFocus />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable style={styles.primaryButton} onPress={handleSave} disabled={busy || name.trim().length === 0}>
-        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Continue</Text>}
-      </Pressable>
+      <Button mode="contained" onPress={handleSave} loading={busy} disabled={busy || name.trim().length === 0}>
+        Continue
+      </Button>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", justifyContent: "center", padding: 24, gap: 12 },
-  title: { fontSize: 22, fontWeight: "700", textAlign: "center" },
+  title: { textAlign: "center" },
   subtitle: { fontSize: 14, color: "#555", textAlign: "center", marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, fontSize: 16 },
-  error: { color: "#c0392b", fontSize: 13 },
-  primaryButton: { backgroundColor: "#1d4ed8", borderRadius: 8, padding: 14, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  error: { color: "#B3261E", fontSize: 13 },
 });

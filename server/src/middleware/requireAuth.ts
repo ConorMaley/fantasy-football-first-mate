@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 
+import { runWithCurrentUserId } from "../currentUser.js";
 import { ACCESS_COOKIE_NAME } from "../lib/auth/cookies.js";
 import { verifyAccessToken } from "../lib/auth/jwt.js";
 
@@ -25,8 +26,9 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
 
   try {
-    req.userId = verifyAccessToken(token).sub;
-    next();
+    const userId = verifyAccessToken(token).sub;
+    req.userId = userId;
+    runWithCurrentUserId(userId, next);
   } catch {
     res.status(401).json({ error: "Invalid or expired access token" });
   }
