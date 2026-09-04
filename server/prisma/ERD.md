@@ -7,6 +7,8 @@ erDiagram
     USER ||--o{ LEAGUE_LINK : has
     USER ||--o{ LEAGUE : creates
     USER ||--o{ LEAGUE_MEMBER : "is (optionally)"
+    USER ||--o{ OAUTH_ACCOUNT : has
+    USER ||--o{ SESSION : has
     LEAGUE_LINK |o--o{ LEAGUE : syncs
     LEAGUE_LINK ||--o| ESPN_LEAGUE_LINK : ""
     LEAGUE_LINK ||--o| YAHOO_LEAGUE_LINK : ""
@@ -36,9 +38,53 @@ erDiagram
     USER {
         string id PK
         string email UK
-        string displayName
+        string displayName "nullable"
+        string passwordHash "nullable"
+        datetime emailVerifiedAt "nullable"
+        int failedLoginAttempts
+        datetime lockedUntil "nullable"
         datetime createdAt
         datetime updatedAt
+    }
+
+    OAUTH_ACCOUNT {
+        string id PK
+        OAuthProvider provider "GOOGLE | APPLE"
+        string providerAccountId
+        string email
+        datetime createdAt
+        string userId FK
+    }
+
+    OTP_CODE {
+        string id PK
+        string email
+        string codeHash
+        int attempts
+        datetime expiresAt
+        datetime consumedAt "nullable"
+        datetime createdAt
+    }
+
+    MAGIC_LINK_TOKEN {
+        string id PK
+        string email
+        string tokenHash UK
+        datetime expiresAt
+        datetime consumedAt "nullable"
+        datetime createdAt
+    }
+
+    SESSION {
+        string id PK
+        string refreshTokenHash UK
+        string userAgent "nullable"
+        string ipAddress "nullable"
+        datetime expiresAt
+        datetime lastUsedAt
+        datetime revokedAt "nullable"
+        datetime createdAt
+        string userId FK
     }
 
     LEAGUE_LINK {
@@ -226,3 +272,6 @@ erDiagram
 - `Crewmate` is a contact-list entry **owned by one User** (`ownerId`), not a mutual/bidirectional relationship — it exists specifically so a crewmate doesn't need a First Mate account: `userId` is only set once that person is matched or signs up via invite. `CrewmateLeagueMember` is the many-to-many join that groups a Crewmate's history: it links one `Crewmate` to every `LeagueMember` that represents them across leagues, platforms, and seasons. The same `LeagueMember` can be tagged by several different owners independently (each maintains their own crew even inside a shared league), which is why this needs a join table rather than a column on either side.
 - Season history itself needed no new models: every `League` row is already one season (`@@unique([createdById, platform, externalLeagueId, season])`), so `Matchup`/`RosterMatchup`/`RosterMatchupSlot`, `Standing`, and `Transaction`/`TransactionItem` are already permanent per-season records. `LeagueGroup` fills the one real gap — tying the `League` rows for the same real-world league together across years (and even across a platform migration), so history can be viewed as one continuous timeline. Grouping is manual and owned by one `User` (`ownerId`), same rationale as `Crewmate`: the same leagues could be grouped differently by different owners. `League.leagueGroup` is nullable since a league isn't grouped until its owner does so.
 - Weekly standings history (a snapshot per week, vs. the current cumulative record `Standing` holds) is intentionally not modeled yet.
+- Auth: one `User` per verified email — any method (password, OTP, magic link, Google, Apple) that proves control of a verified email resolves to the same `User`. `OAuthAccount` links a provider identity to a `User` (`@@unique([provider, providerAccountId])`); auto-linking a new provider to an existing `User` is only allowed once that `User.emailVerifiedAt` is set, to prevent an attacker squatting an unverified password account on someone else's email and inheriting their later Google/Apple sign-in.
+- `OtpCode` and `MagicLinkToken` are both keyed by `email`, not `userId` — first-time verification of either is what creates the `User` (implicit signup-or-login). `MagicLinkToken` also does double duty as the password-signup email-verification mechanism: consuming one for an existing unverified `User` sets `emailVerifiedAt`, so there's no third, separate verification-token model. There is deliberately no password-reset flow either — a user who forgot their password just logs in via OTP/magic link and sets a new password from settings.
+- `Session` is one row per logged-in device; `refreshTokenHash` rotates in place on refresh rather than creating a new row per rotation, and `revokedAt` covers logout. No rotation-chain reuse-detection history and no "view/revoke other devices" UI yet — the model supports adding both later without a schema change.

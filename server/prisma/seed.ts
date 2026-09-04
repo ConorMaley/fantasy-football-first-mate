@@ -1,10 +1,11 @@
 import "dotenv/config";
 
-import { DEV_USER_ID } from "../src/currentUser.js";
 import { prisma } from "../src/lib/prisma.js";
 
+// No dev-user shortcut: log in for real (password/OTP/magic-link/OAuth) in
+// local dev, same as production. These are just sample "other people" data
+// for exercising search/crewmate-tagging against.
 const users = [
-  { id: DEV_USER_ID, email: "dev@firstmate.local", displayName: "Dev User" },
   { id: "sample-user-1", email: "alex@firstmate.local", displayName: "Alex Rivera" },
   { id: "sample-user-2", email: "sam@firstmate.local", displayName: "Sam Okafor" },
   { id: "sample-user-3", email: "jordan@firstmate.local", displayName: "Jordan Lee" },

@@ -12,6 +12,11 @@ enum Platform {
   SLEEPER
 }
 
+enum OAuthProvider {
+  GOOGLE
+  APPLE
+}
+
 enum Position {
   QB
   RB
@@ -35,11 +40,18 @@ enum TransactionItemAction {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  displayName String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  displayName         String?
+  passwordHash        String?
+  emailVerifiedAt     DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  oauthAccounts OAuthAccount[]
+  sessions      Session[]
 
   leagueLinks       LeagueLink[]
   createdLeagues    League[]       @relation("LeagueCreatedBy")
@@ -47,6 +59,72 @@ model User {
   crewmates         Crewmate[]     @relation("CrewmateOwner")
   crewmateOf        Crewmate[]     @relation("CrewmateUser")
   leagueGroups      LeagueGroup[]
+}
+
+/// One row per linked OAuth identity (Google/Apple). Auto-linked to an
+/// existing User by verified email — see the identity-model note below.
+/// Multiple providers can point at the same User.
+model OAuthAccount {
+  id                String        @id @default(cuid())
+  provider          OAuthProvider
+  providerAccountId String
+  email             String
+  createdAt         DateTime      @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+/// A one-time email login code. Keyed by email, not userId, because the
+/// first-time verification of a code is what creates the User. codeHash so a
+/// leaked row doesn't expose a usable code.
+model OtpCode {
+  id         String    @id @default(cuid())
+  email      String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, createdAt])
+}
+
+/// Same shape/purpose as OtpCode but for the link-based login flow. Also
+/// doubles as the password-signup email-verification mechanism — consuming
+/// one for an existing unverified User sets User.emailVerifiedAt, so there's
+/// no separate verification-token model.
+model MagicLinkToken {
+  id         String    @id @default(cuid())
+  email      String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, createdAt])
+}
+
+/// One row per logged-in device/browser. refreshTokenHash rotates in place
+/// on each /auth/refresh call rather than creating a new row; revokedAt
+/// covers logout. Deliberately no rotation-chain/reuse-detection history —
+/// out of scope for v1 per the auth PRD.
+model Session {
+  id               String    @id @default(cuid())
+  refreshTokenHash String    @unique
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  lastUsedAt       DateTime  @default(now())
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// A user's connection to a fantasy platform (ESPN/Yahoo/Sleeper), used to
