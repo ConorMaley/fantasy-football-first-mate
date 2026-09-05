@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import { requireAuth } from "./middleware/requireAuth.js";
 import { authRouter } from "./routes/auth.js";
 import { crewmatesRouter } from "./routes/crewmates.js";
+import { dashboardRouter } from "./routes/dashboard.js";
 import { healthRouter } from "./routes/health.js";
 import { leagueGroupsRouter } from "./routes/leagueGroups.js";
 import { leagueMembersRouter } from "./routes/leagueMembers.js";
@@ -28,6 +29,7 @@ app.use("/api/auth", authRateLimit, authRouter);
 // Everything below requires a signed-in session — requireAuth populates
 // currentUser.ts's per-request store that these routers/services read via
 // getCurrentUserId().
+app.use("/api", requireAuth, dashboardRouter);
 app.use("/api", requireAuth, leaguesRouter);
 app.use("/api", requireAuth, leagueGroupsRouter);
 app.use("/api", requireAuth, leagueMembersRouter);
