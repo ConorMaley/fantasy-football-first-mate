@@ -1,12 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+import { loginAsAlex } from "./helpers";
+
 // See dashboard.spec.ts for why `.first()` / `visible=true` show up so much
 // here: React Native Web keeps previously-mounted screens (the dashboard,
 // other tabs) in the DOM hidden rather than removed, so plain text locators
 // can still match content that isn't currently on screen.
 
 async function openDynastyDominators(page: import("@playwright/test").Page) {
-  await page.goto("/");
+  await loginAsAlex(page);
   await page.getByText("Dynasty Dominators").first().click();
   await expect(page.getByRole("tab", { name: "Matchups" })).toBeVisible();
 }
@@ -16,19 +18,19 @@ test.describe("League detail — Matchups tab", () => {
     await openDynastyDominators(page);
 
     await expect(page.getByText("Week 6", { exact: true }).first()).toBeVisible();
-    await expect(page.locator("text=Prev >> visible=true").first()).toBeVisible();
-    await expect(page.locator("text=Next >> visible=true").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Previous week" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Next week" })).toBeVisible();
   });
 
   test("stepping to the previous week updates the matchup list and doesn't overshoot week 1", async ({ page }) => {
     await openDynastyDominators(page);
 
-    await page.locator("text=Prev >> visible=true").first().click();
+    await page.getByRole("button", { name: "Previous week" }).click();
     await expect(page.getByText("Week 5", { exact: true }).first()).toBeVisible();
 
     // Walk back to week 1 (5 -> 4 -> 3 -> 2 -> 1).
     for (let i = 0; i < 4; i++) {
-      await page.locator("text=Prev >> visible=true").first().click();
+      await page.getByRole("button", { name: "Previous week" }).click();
     }
     await expect(page.getByText("Week 1", { exact: true }).first()).toBeVisible();
   });
@@ -38,7 +40,7 @@ test.describe("League detail — Matchups tab", () => {
   }) => {
     await openDynastyDominators(page);
 
-    await page.locator("text=Prev >> visible=true").first().click();
+    await page.getByRole("button", { name: "Previous week" }).click();
     await expect(page.getByText("Week 5", { exact: true }).first()).toBeVisible();
 
     await page.locator("text=Blazing Titans >> visible=true").first().click();

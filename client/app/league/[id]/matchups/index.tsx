@@ -1,6 +1,6 @@
 import { useGlobalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import type { MatchupsForWeekResponse } from "../../../../src/api/types";
 import { useApiQuery } from "../../../../src/api/useApiQuery";
@@ -19,8 +19,8 @@ export default function MatchupsTab() {
   const { data, status, error, refetch } = useApiQuery<MatchupsForWeekResponse>(path);
 
   return (
-    <ScrollView className="flex-1 bg-slate-50">
-      <View className="p-4">
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
         {status === "loading" && <LoadingState label="Loading matchups…" />}
 
         {status === "error" && (
@@ -49,3 +49,8 @@ export default function MatchupsTab() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: { padding: 16 },
+});

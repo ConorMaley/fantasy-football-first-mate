@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 
-import { NotFoundError } from "./errors.js";
+import { NotFoundError } from "../services/errors.js";
 import { prisma } from "./prisma.js";
 
 export interface StandingRow {

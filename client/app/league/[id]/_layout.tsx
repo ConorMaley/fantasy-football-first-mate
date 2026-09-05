@@ -1,5 +1,6 @@
-import { Tabs, useGlobalSearchParams } from "expo-router";
-import { Text, View } from "react-native";
+import { Stack, Tabs, useGlobalSearchParams } from "expo-router";
+import { StyleSheet, View } from "react-native";
+import { Text } from "react-native-paper";
 
 import type { LeagueSummary } from "../../../src/api/types";
 import { useApiQuery } from "../../../src/api/useApiQuery";
@@ -9,16 +10,19 @@ export default function LeagueLayout() {
   const { data, status, error } = useApiQuery<LeagueSummary>(id ? `/leagues/${id}` : null);
 
   return (
-    <View className="flex-1 bg-slate-50">
-      <View className="border-b border-slate-200 bg-white px-4 pb-3 pt-4">
-        {status === "loading" && <Text className="text-sm text-slate-500">Loading league…</Text>}
+    <View style={styles.container}>
+      <Stack.Screen options={{ title: data?.name ?? "" }} />
+      <View style={styles.header}>
+        {status === "loading" && <Text variant="bodyMedium">Loading league…</Text>}
         {status === "error" && (
-          <Text className="text-sm text-red-600">{error?.message ?? "Unable to load this league."}</Text>
+          <Text variant="bodyMedium" style={styles.errorText}>
+            {error?.message ?? "Unable to load this league."}
+          </Text>
         )}
         {status === "success" && data && (
           <>
-            <Text className="text-xl font-bold text-slate-900">{data.name}</Text>
-            <Text className="mt-0.5 text-xs uppercase tracking-wide text-slate-500">
+            <Text variant="headlineSmall">{data.name}</Text>
+            <Text variant="labelMedium" style={styles.subtitle}>
               {data.platform} · {data.season}
             </Text>
           </>
@@ -33,3 +37,10 @@ export default function LeagueLayout() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#e2e8f0" },
+  subtitle: { marginTop: 2, opacity: 0.6, textTransform: "uppercase" },
+  errorText: { color: "#dc2626" },
+});

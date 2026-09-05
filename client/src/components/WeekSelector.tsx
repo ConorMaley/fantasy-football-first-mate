@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { IconButton, Text } from "react-native-paper";
 
 export function WeekSelector({
   week,
@@ -14,22 +15,33 @@ export function WeekSelector({
   const canGoForward = index >= 0 && index < availableWeeks.length - 1;
 
   return (
-    <View className="mb-4 flex-row items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2">
-      <Pressable
+    <View style={styles.container}>
+      <IconButton
+        icon="chevron-left"
+        accessibilityLabel="Previous week"
         disabled={!canGoBack}
         onPress={() => canGoBack && onChange(availableWeeks[index - 1])}
-        className={`rounded-full px-3 py-1 ${canGoBack ? "bg-slate-100" : "opacity-30"}`}
-      >
-        <Text className="text-sm font-medium text-slate-700">Prev</Text>
-      </Pressable>
-      <Text className="text-base font-semibold text-slate-900">Week {week}</Text>
-      <Pressable
+      />
+      <Text variant="titleMedium">Week {week}</Text>
+      <IconButton
+        icon="chevron-right"
+        accessibilityLabel="Next week"
         disabled={!canGoForward}
         onPress={() => canGoForward && onChange(availableWeeks[index + 1])}
-        className={`rounded-full px-3 py-1 ${canGoForward ? "bg-slate-100" : "opacity-30"}`}
-      >
-        <Text className="text-sm font-medium text-slate-700">Next</Text>
-      </Pressable>
+      />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    paddingHorizontal: 4,
+  },
+});

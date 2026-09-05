@@ -1,4 +1,5 @@
-import { Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Divider, Text } from "react-native-paper";
 
 import type { BoxScorePlayer, BoxScoreSide } from "../api/types";
 
@@ -8,38 +9,42 @@ function formatPoints(points: number | null): string {
 
 function PlayerRow({ player }: { player: BoxScorePlayer }) {
   return (
-    <View className="flex-row items-center justify-between border-b border-slate-100 py-1.5">
-      <View className="flex-1 flex-row items-center gap-2">
-        <Text className="w-10 text-xs font-semibold text-slate-400">{player.lineupSlot}</Text>
-        <Text className="flex-1 text-sm text-slate-800" numberOfLines={1}>
-          {player.fullName}
-        </Text>
-        <Text className="text-xs text-slate-400">
-          {player.position}
-          {player.nflTeam ? ` · ${player.nflTeam}` : ""}
-        </Text>
-      </View>
-      <Text className="w-12 text-right text-sm font-medium text-slate-900">{formatPoints(player.points)}</Text>
+    <View style={styles.playerRow}>
+      <Text variant="labelMedium" style={styles.slot}>
+        {player.lineupSlot}
+      </Text>
+      <Text variant="bodyMedium" style={styles.playerName} numberOfLines={1}>
+        {player.fullName}
+      </Text>
+      <Text variant="labelSmall" style={styles.playerMeta}>
+        {player.position}
+        {player.nflTeam ? ` · ${player.nflTeam}` : ""}
+      </Text>
+      <Text variant="titleSmall" style={styles.points}>
+        {formatPoints(player.points)}
+      </Text>
     </View>
   );
 }
 
 function SideColumn({ side }: { side: BoxScoreSide }) {
   return (
-    <View className="mb-6">
-      <View className="mb-2 flex-row items-center justify-between">
-        <Text className="text-base font-semibold text-slate-900">
-          {side.teamName ?? side.externalDisplayName ?? "Unnamed team"}
-        </Text>
-        <Text className="text-base font-bold text-slate-900">{formatPoints(side.score)}</Text>
+    <View style={styles.side}>
+      <View style={styles.sideHeader}>
+        <Text variant="titleMedium">{side.teamName ?? side.externalDisplayName ?? "Unnamed team"}</Text>
+        <Text variant="titleMedium">{formatPoints(side.score)}</Text>
       </View>
 
-      <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Starters</Text>
+      <Text variant="labelLarge" style={styles.sectionLabel}>
+        Starters
+      </Text>
       {side.starters.map((player) => (
         <PlayerRow key={player.playerId} player={player} />
       ))}
 
-      <Text className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Bench</Text>
+      <Text variant="labelLarge" style={[styles.sectionLabel, styles.benchLabel]}>
+        Bench
+      </Text>
       {side.bench.map((player) => (
         <PlayerRow key={player.playerId} player={player} />
       ))}
@@ -50,9 +55,32 @@ function SideColumn({ side }: { side: BoxScoreSide }) {
 export function BoxScore({ sides }: { sides: BoxScoreSide[] }) {
   return (
     <View>
-      {sides.map((side) => (
-        <SideColumn key={side.leagueMemberId} side={side} />
+      {sides.map((side, i) => (
+        <View key={side.leagueMemberId}>
+          <SideColumn side={side} />
+          {i < sides.length - 1 && <Divider style={styles.divider} />}
+        </View>
       ))}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  side: { marginBottom: 8 },
+  sideHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  sectionLabel: { marginBottom: 4, opacity: 0.6, textTransform: "uppercase" },
+  benchLabel: { marginTop: 12 },
+  playerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#e2e8f0",
+  },
+  slot: { width: 40, opacity: 0.6 },
+  playerName: { flex: 1 },
+  playerMeta: { opacity: 0.6 },
+  points: { width: 48, textAlign: "right" },
+  divider: { marginVertical: 16 },
+});

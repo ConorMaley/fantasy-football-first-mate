@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { loginAsAlex } from "./helpers";
+
 // React Native Web keeps previously-mounted screens in the DOM (hidden, not
 // removed) when navigating within expo-router's Stack/Tabs, so text-based
 // locators can still resolve matches on screens that are no longer visible.
@@ -7,7 +9,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Dashboard", () => {
   test("shows active leagues with matchups and standings, excluding inactive leagues", async ({ page }) => {
-    await page.goto("/");
+    await loginAsAlex(page);
 
     await expect(page.getByText("Your Leagues", { exact: true })).toBeVisible();
 
@@ -20,7 +22,7 @@ test.describe("Dashboard", () => {
   });
 
   test("each league card shows its latest-week matchups and full standings", async ({ page }) => {
-    await page.goto("/");
+    await loginAsAlex(page);
 
     // Both league cards render a "Week N Matchups" header and a standings
     // table (W-L-T / PF / PA columns).
@@ -32,7 +34,7 @@ test.describe("Dashboard", () => {
   });
 
   test("tapping a league card navigates into its First Mate view", async ({ page }) => {
-    await page.goto("/");
+    await loginAsAlex(page);
 
     await page.getByText("Dynasty Dominators").first().click();
 

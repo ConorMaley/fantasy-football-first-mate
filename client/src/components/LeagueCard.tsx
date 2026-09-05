@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Card, Text } from "react-native-paper";
 
 import type { DashboardLeagueSummary } from "../api/types";
 import { MatchupRow } from "./MatchupRow";
@@ -9,32 +10,40 @@ export function LeagueCard({ league }: { league: DashboardLeagueSummary }) {
   const router = useRouter();
 
   return (
-    <Pressable
-      onPress={() => router.push(`/league/${league.id}/matchups`)}
-      className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-    >
-      <Text className="text-lg font-semibold text-slate-900">{league.name}</Text>
-      <Text className="mt-1 text-xs uppercase tracking-wide text-slate-500">
-        {league.platform} · {league.season}
-      </Text>
+    <Card style={styles.card} onPress={() => router.push(`/league/${league.id}/matchups`)}>
+      <Card.Content>
+        <Text variant="titleLarge">{league.name}</Text>
+        <Text variant="labelMedium" style={styles.subtitle}>
+          {league.platform} · {league.season}
+        </Text>
 
-      {league.latestWeek != null && (
-        <View className="mt-4">
-          <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Week {league.latestWeek} Matchups
-          </Text>
-          {league.matchups.map((matchup) => (
-            <MatchupRow key={matchup.id} matchup={matchup} />
-          ))}
-        </View>
-      )}
+        {league.latestWeek != null && (
+          <View style={styles.section}>
+            <Text variant="labelLarge" style={styles.sectionLabel}>
+              Week {league.latestWeek} Matchups
+            </Text>
+            {league.matchups.map((matchup) => (
+              <MatchupRow key={matchup.id} matchup={matchup} />
+            ))}
+          </View>
+        )}
 
-      {league.standings.length > 0 && (
-        <View className="mt-4">
-          <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Standings</Text>
-          <StandingsTable standings={league.standings} />
-        </View>
-      )}
-    </Pressable>
+        {league.standings.length > 0 && (
+          <View style={styles.section}>
+            <Text variant="labelLarge" style={styles.sectionLabel}>
+              Standings
+            </Text>
+            <StandingsTable standings={league.standings} />
+          </View>
+        )}
+      </Card.Content>
+    </Card>
   );
 }
+
+const styles = StyleSheet.create({
+  card: { marginBottom: 16 },
+  subtitle: { marginTop: 2, opacity: 0.6, textTransform: "uppercase" },
+  section: { marginTop: 16 },
+  sectionLabel: { marginBottom: 4, opacity: 0.6, textTransform: "uppercase" },
+});

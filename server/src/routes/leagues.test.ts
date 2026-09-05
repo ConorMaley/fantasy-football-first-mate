@@ -1,26 +1,42 @@
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { app } from "../app.js";
 import { prisma } from "../lib/prisma.js";
-import { BENCH_COUNT, LEAGUE_A_NAME, LEAGUE_B_NAME, LEAGUE_C_NAME, STARTER_COUNT, WEEK_COUNT } from "../../prisma/seed.js";
+import { authHeaderFor } from "../test/helpers.js";
+import {
+  ALEX_EMAIL,
+  BENCH_COUNT,
+  LEAGUE_A_NAME,
+  LEAGUE_B_NAME,
+  LEAGUE_C_NAME,
+  STARTER_COUNT,
+  WEEK_COUNT,
+} from "../../prisma/seed.js";
+
+let authHeader: string;
+
+beforeAll(async () => {
+  const alex = await prisma.user.findUniqueOrThrow({ where: { email: ALEX_EMAIL } });
+  authHeader = await authHeaderFor(alex.id);
+});
 
 describe("GET /api/leagues/:leagueId", () => {
   it("returns the league summary for a league visible to the current user", async () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_A_NAME } });
-    const res = await request(app).get(`/api/leagues/${league.id}`);
+    const res = await request(app).get(`/api/leagues/${league.id}`).set("Authorization", authHeader);
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ id: league.id, name: LEAGUE_A_NAME, platform: "ESPN", season: 2025 });
   });
 
   it("returns 404 for an inactive league", async () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_C_NAME } });
-    const res = await request(app).get(`/api/leagues/${league.id}`);
+    const res = await request(app).get(`/api/leagues/${league.id}`).set("Authorization", authHeader);
     expect(res.status).toBe(404);
   });
 
   it("returns 404 for a league id that doesn't exist", async () => {
-    const res = await request(app).get("/api/leagues/does-not-exist");
+    const res = await request(app).get("/api/leagues/does-not-exist").set("Authorization", authHeader);
     expect(res.status).toBe(404);
   });
 });
@@ -30,7 +46,7 @@ describe("GET /api/leagues/:leagueId/standings", () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_A_NAME } });
     const memberCount = await prisma.leagueMember.count({ where: { leagueId: league.id } });
 
-    const res = await request(app).get(`/api/leagues/${league.id}/standings`);
+    const res = await request(app).get(`/api/leagues/${league.id}/standings`).set("Authorization", authHeader);
     expect(res.status).toBe(200);
     expect(res.body.standings).toHaveLength(memberCount);
     expect((res.body.standings as Array<{ rank: number }>).map((s) => s.rank)).toEqual(
@@ -40,7 +56,7 @@ describe("GET /api/leagues/:leagueId/standings", () => {
 
   it("returns 404 for a league the user can't see", async () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_C_NAME } });
-    const res = await request(app).get(`/api/leagues/${league.id}/standings`);
+    const res = await request(app).get(`/api/leagues/${league.id}/standings`).set("Authorization", authHeader);
     expect(res.status).toBe(404);
   });
 });
@@ -50,7 +66,7 @@ describe("GET /api/leagues/:leagueId/matchups", () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_A_NAME } });
     const memberCount = await prisma.leagueMember.count({ where: { leagueId: league.id } });
 
-    const res = await request(app).get(`/api/leagues/${league.id}/matchups`);
+    const res = await request(app).get(`/api/leagues/${league.id}/matchups`).set("Authorization", authHeader);
     expect(res.status).toBe(200);
     expect(res.body.week).toBe(WEEK_COUNT);
     expect(res.body.availableWeeks).toEqual(Array.from({ length: WEEK_COUNT }, (_, i) => i + 1));
@@ -61,7 +77,7 @@ describe("GET /api/leagues/:leagueId/matchups", () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_A_NAME } });
     const memberCount = await prisma.leagueMember.count({ where: { leagueId: league.id } });
 
-    const res = await request(app).get(`/api/leagues/${league.id}/matchups?week=2`);
+    const res = await request(app).get(`/api/leagues/${league.id}/matchups?week=2`).set("Authorization", authHeader);
     expect(res.status).toBe(200);
     expect(res.body.week).toBe(2);
     expect(res.body.matchups).toHaveLength(memberCount / 2);
@@ -72,7 +88,7 @@ describe("GET /api/leagues/:leagueId/matchups", () => {
 
   it("returns 404 for a league the user can't see", async () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_C_NAME } });
-    const res = await request(app).get(`/api/leagues/${league.id}/matchups`);
+    const res = await request(app).get(`/api/leagues/${league.id}/matchups`).set("Authorization", authHeader);
     expect(res.status).toBe(404);
   });
 });
@@ -82,7 +98,7 @@ describe("GET /api/leagues/:leagueId/matchups/:matchupId", () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_A_NAME } });
     const matchup = await prisma.matchup.findFirstOrThrow({ where: { leagueId: league.id } });
 
-    const res = await request(app).get(`/api/leagues/${league.id}/matchups/${matchup.id}`);
+    const res = await request(app).get(`/api/leagues/${league.id}/matchups/${matchup.id}`).set("Authorization", authHeader);
     expect(res.status).toBe(200);
     expect(res.body.sides).toHaveLength(2);
 
@@ -99,13 +115,13 @@ describe("GET /api/leagues/:leagueId/matchups/:matchupId", () => {
     const leagueA = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_A_NAME } });
     const otherMatchup = await prisma.matchup.findFirstOrThrow({ where: { leagueId: { not: leagueA.id } } });
 
-    const res = await request(app).get(`/api/leagues/${leagueA.id}/matchups/${otherMatchup.id}`);
+    const res = await request(app).get(`/api/leagues/${leagueA.id}/matchups/${otherMatchup.id}`).set("Authorization", authHeader);
     expect(res.status).toBe(404);
   });
 
   it("returns 404 for a league the user can't see", async () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_C_NAME } });
-    const res = await request(app).get(`/api/leagues/${league.id}/matchups/does-not-exist`);
+    const res = await request(app).get(`/api/leagues/${league.id}/matchups/does-not-exist`).set("Authorization", authHeader);
     expect(res.status).toBe(404);
   });
 });
@@ -115,14 +131,14 @@ describe("GET /api/leagues/:leagueId/rosters", () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_A_NAME } });
     const memberCount = await prisma.leagueMember.count({ where: { leagueId: league.id } });
 
-    const res = await request(app).get(`/api/leagues/${league.id}/rosters`);
+    const res = await request(app).get(`/api/leagues/${league.id}/rosters`).set("Authorization", authHeader);
     expect(res.status).toBe(200);
     expect(res.body.teams).toHaveLength(memberCount);
   });
 
   it("flags exactly the current user's own team", async () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_B_NAME } });
-    const res = await request(app).get(`/api/leagues/${league.id}/rosters`);
+    const res = await request(app).get(`/api/leagues/${league.id}/rosters`).set("Authorization", authHeader);
     const flagged = (res.body.teams as Array<{ teamId: string; isCurrentUser: boolean }>).filter(
       (t) => t.isCurrentUser,
     );
@@ -132,7 +148,7 @@ describe("GET /api/leagues/:leagueId/rosters", () => {
 
   it("returns 404 for a league the user can't see", async () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_C_NAME } });
-    const res = await request(app).get(`/api/leagues/${league.id}/rosters`);
+    const res = await request(app).get(`/api/leagues/${league.id}/rosters`).set("Authorization", authHeader);
     expect(res.status).toBe(404);
   });
 });
@@ -140,7 +156,7 @@ describe("GET /api/leagues/:leagueId/rosters", () => {
 describe("GET /api/leagues/:leagueId/rosters/:teamId", () => {
   it("returns a team's starters and bench grouped by lineup slot", async () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_A_NAME } });
-    const res = await request(app).get(`/api/leagues/${league.id}/rosters/team-1`);
+    const res = await request(app).get(`/api/leagues/${league.id}/rosters/team-1`).set("Authorization", authHeader);
     expect(res.status).toBe(200);
     expect(res.body.starters).toHaveLength(STARTER_COUNT);
     expect(res.body.bench).toHaveLength(BENCH_COUNT);
@@ -148,13 +164,13 @@ describe("GET /api/leagues/:leagueId/rosters/:teamId", () => {
 
   it("returns 404 for a team id that doesn't exist in the league", async () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_A_NAME } });
-    const res = await request(app).get(`/api/leagues/${league.id}/rosters/does-not-exist`);
+    const res = await request(app).get(`/api/leagues/${league.id}/rosters/does-not-exist`).set("Authorization", authHeader);
     expect(res.status).toBe(404);
   });
 
   it("returns 404 for a league the user can't see", async () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_C_NAME } });
-    const res = await request(app).get(`/api/leagues/${league.id}/rosters/team-1`);
+    const res = await request(app).get(`/api/leagues/${league.id}/rosters/team-1`).set("Authorization", authHeader);
     expect(res.status).toBe(404);
   });
 });
@@ -164,7 +180,7 @@ describe("GET /api/leagues/:leagueId/transactions", () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_A_NAME } });
     const expectedCount = await prisma.transaction.count({ where: { leagueId: league.id } });
 
-    const res = await request(app).get(`/api/leagues/${league.id}/transactions`);
+    const res = await request(app).get(`/api/leagues/${league.id}/transactions`).set("Authorization", authHeader);
     expect(res.status).toBe(200);
     expect(res.body.transactions).toHaveLength(expectedCount);
 
@@ -177,7 +193,7 @@ describe("GET /api/leagues/:leagueId/transactions", () => {
 
   it("renders a multi-item trade as one transaction spanning two teams", async () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_A_NAME } });
-    const res = await request(app).get(`/api/leagues/${league.id}/transactions`);
+    const res = await request(app).get(`/api/leagues/${league.id}/transactions`).set("Authorization", authHeader);
     const trade = (res.body.transactions as Array<{ type: string; items: Array<{ team: { teamId: string } | null }> }>).find(
       (t) => t.type === "TRADE",
     );
@@ -189,7 +205,7 @@ describe("GET /api/leagues/:leagueId/transactions", () => {
 
   it("renders a free-agent drop (no receiving team) without error", async () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_A_NAME } });
-    const res = await request(app).get(`/api/leagues/${league.id}/transactions`);
+    const res = await request(app).get(`/api/leagues/${league.id}/transactions`).set("Authorization", authHeader);
     const freeAgentItem = (res.body.transactions as Array<{ items: Array<{ team: unknown }> }>)
       .flatMap((t) => t.items)
       .find((i) => i.team === null);
@@ -198,7 +214,7 @@ describe("GET /api/leagues/:leagueId/transactions", () => {
 
   it("returns 404 for a league the user can't see", async () => {
     const league = await prisma.league.findFirstOrThrow({ where: { name: LEAGUE_C_NAME } });
-    const res = await request(app).get(`/api/leagues/${league.id}/transactions`);
+    const res = await request(app).get(`/api/leagues/${league.id}/transactions`).set("Authorization", authHeader);
     expect(res.status).toBe(404);
   });
 });

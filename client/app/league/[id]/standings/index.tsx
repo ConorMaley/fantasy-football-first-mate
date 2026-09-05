@@ -1,5 +1,5 @@
 import { useGlobalSearchParams } from "expo-router";
-import { ScrollView, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import type { StandingsResponse } from "../../../../src/api/types";
 import { useApiQuery } from "../../../../src/api/useApiQuery";
@@ -13,8 +13,8 @@ export default function StandingsTab() {
   const { data, status, error, refetch } = useApiQuery<StandingsResponse>(id ? `/leagues/${id}/standings` : null);
 
   return (
-    <ScrollView className="flex-1 bg-slate-50">
-      <View className="p-4">
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
         {status === "loading" && <LoadingState label="Loading standings…" />}
 
         {status === "error" && (
@@ -32,3 +32,8 @@ export default function StandingsTab() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: { padding: 16 },
+});

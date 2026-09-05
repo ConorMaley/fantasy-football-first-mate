@@ -1,6 +1,6 @@
 import { useGlobalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import type { TeamRosterResponse, TeamsResponse } from "../../../../src/api/types";
 import { useApiQuery } from "../../../../src/api/useApiQuery";
@@ -29,8 +29,8 @@ export default function RostersTab() {
   const rosterQuery = useApiQuery<TeamRosterResponse>(rosterPath);
 
   return (
-    <ScrollView className="flex-1 bg-slate-50">
-      <View className="p-4">
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
         {teamsQuery.status === "loading" && <LoadingState label="Loading teams…" />}
 
         {teamsQuery.status === "error" && (
@@ -63,3 +63,8 @@ export default function RostersTab() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: { padding: 16 },
+});

@@ -1,13 +1,22 @@
-import { Pressable, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Button, Text } from "react-native-paper";
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <View className="items-center justify-center gap-3 px-6 py-16">
-      <Text className="text-base font-semibold text-slate-800">Something went wrong</Text>
-      <Text className="text-center text-sm text-slate-500">{message}</Text>
-      <Pressable onPress={onRetry} className="mt-2 rounded-full bg-blue-600 px-5 py-2">
-        <Text className="font-medium text-white">Retry</Text>
-      </Pressable>
+    <View style={styles.container}>
+      <Text variant="titleMedium">Something went wrong</Text>
+      <Text variant="bodyMedium" style={styles.message}>
+        {message}
+      </Text>
+      <Button mode="contained" onPress={onRetry} style={styles.retry}>
+        Retry
+      </Button>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 64, paddingHorizontal: 24 },
+  message: { textAlign: "center", opacity: 0.7 },
+  retry: { marginTop: 8 },
+});

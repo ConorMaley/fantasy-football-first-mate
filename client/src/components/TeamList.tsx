@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, Text } from "react-native";
+import { ScrollView, StyleSheet } from "react-native";
+import { Chip } from "react-native-paper";
 
 import type { TeamSummary } from "../api/types";
 
@@ -12,23 +13,24 @@ export function TeamList({
   onSelect: (teamId: string) => void;
 }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
-      {teams.map((team) => {
-        const selected = team.teamId === selectedTeamId;
-        return (
-          <Pressable
-            key={team.teamId}
-            testID={`team-chip-${team.teamId}`}
-            onPress={() => onSelect(team.teamId)}
-            className={`mr-2 rounded-full border px-3 py-1.5 ${selected ? "border-blue-600 bg-blue-600" : "border-slate-200 bg-white"}`}
-          >
-            <Text className={`text-sm font-medium ${selected ? "text-white" : "text-slate-700"}`}>
-              {team.teamName ?? team.externalDisplayName ?? "Unnamed team"}
-              {team.isCurrentUser ? " (You)" : ""}
-            </Text>
-          </Pressable>
-        );
-      })}
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.container}>
+      {teams.map((team) => (
+        <Chip
+          key={team.teamId}
+          testID={`team-chip-${team.teamId}`}
+          selected={team.teamId === selectedTeamId}
+          onPress={() => onSelect(team.teamId)}
+          style={styles.chip}
+        >
+          {team.teamName ?? team.externalDisplayName ?? "Unnamed team"}
+          {team.isCurrentUser ? " (You)" : ""}
+        </Chip>
+      ))}
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { marginBottom: 16 },
+  chip: { marginRight: 8 },
+});

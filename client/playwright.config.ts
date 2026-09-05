@@ -22,7 +22,16 @@ export default defineConfig({
       command: "npx prisma migrate deploy && npx tsx prisma/seed.ts && npx tsx src/index.ts",
       cwd: "../server",
       url: `http://localhost:${E2E_API_PORT}/api/health`,
-      env: { DATABASE_URL: E2E_DATABASE_URL, PORT: String(E2E_API_PORT) },
+      env: {
+        DATABASE_URL: E2E_DATABASE_URL,
+        PORT: String(E2E_API_PORT),
+        JWT_SECRET: "e2e-test-only-secret",
+        SEED_SAMPLE_PASSWORD: "sample-password-123",
+        // Explicit override: dotenv would otherwise fall back to whatever
+        // CLIENT_APP_URL is in server/.env (the dev port), breaking CORS
+        // against the E2E web server's actual port.
+        CLIENT_APP_URL: `http://localhost:${E2E_WEB_PORT}`,
+      },
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },

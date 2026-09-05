@@ -1,30 +1,29 @@
 import { describe, expect, it } from "vitest";
 
-import { DEV_USER_EMAIL } from "./devUser.js";
 import { buildDashboard } from "./dashboardAggregation.js";
 import { prisma } from "./prisma.js";
-import { LEAGUE_A_NAME, LEAGUE_B_NAME, WEEK_COUNT } from "../../prisma/seed.js";
+import { ALEX_EMAIL, LEAGUE_A_NAME, LEAGUE_B_NAME, WEEK_COUNT } from "../../prisma/seed.js";
 
-async function devUserId(): Promise<string> {
-  const user = await prisma.user.findUniqueOrThrow({ where: { email: DEV_USER_EMAIL } });
+async function alexUserId(): Promise<string> {
+  const user = await prisma.user.findUniqueOrThrow({ where: { email: ALEX_EMAIL } });
   return user.id;
 }
 
 describe("buildDashboard", () => {
   it("returns only the leagues visible to the user (composes findVisibleLeagues)", async () => {
-    const result = await buildDashboard(await devUserId());
+    const result = await buildDashboard(await alexUserId());
     expect(result.leagues.map((l) => l.name).sort()).toEqual([LEAGUE_B_NAME, LEAGUE_A_NAME].sort());
   });
 
   it("reports each league's latest week as the seeded max week", async () => {
-    const result = await buildDashboard(await devUserId());
+    const result = await buildDashboard(await alexUserId());
     for (const league of result.leagues) {
       expect(league.latestWeek).toBe(WEEK_COUNT);
     }
   });
 
   it("includes a complete matchup list for the latest week, every side scored", async () => {
-    const result = await buildDashboard(await devUserId());
+    const result = await buildDashboard(await alexUserId());
     const leagueA = result.leagues.find((l) => l.name === LEAGUE_A_NAME)!;
     const memberCount = await prisma.leagueMember.count({ where: { league: { name: LEAGUE_A_NAME } } });
 
@@ -38,7 +37,7 @@ describe("buildDashboard", () => {
   });
 
   it("includes a full standings table, sorted by rank ascending starting at 1", async () => {
-    const result = await buildDashboard(await devUserId());
+    const result = await buildDashboard(await alexUserId());
     const leagueB = result.leagues.find((l) => l.name === LEAGUE_B_NAME)!;
     const memberCount = await prisma.leagueMember.count({ where: { league: { name: LEAGUE_B_NAME } } });
 
@@ -49,7 +48,7 @@ describe("buildDashboard", () => {
   });
 
   it("standings are internally consistent with the seeded matchup results", async () => {
-    const result = await buildDashboard(await devUserId());
+    const result = await buildDashboard(await alexUserId());
     const leagueA = result.leagues.find((l) => l.name === LEAGUE_A_NAME)!;
     for (const row of leagueA.standings) {
       expect(row.wins + row.losses + row.ties).toBe(WEEK_COUNT);

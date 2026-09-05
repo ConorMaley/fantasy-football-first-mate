@@ -1,10 +1,18 @@
-import { ActivityIndicator, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { ActivityIndicator, Text } from "react-native-paper";
 
 export function LoadingState({ label = "Loading…" }: { label?: string }) {
   return (
-    <View className="items-center justify-center gap-3 py-16">
-      <ActivityIndicator size="large" color="#2563eb" />
-      <Text className="text-sm text-slate-500">{label}</Text>
+    <View style={styles.container}>
+      <ActivityIndicator size="large" />
+      <Text variant="bodyMedium" style={styles.label}>
+        {label}
+      </Text>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { alignItems: "center", justifyContent: "center", gap: 12, paddingVertical: 64 },
+  label: { opacity: 0.7 },
+});
