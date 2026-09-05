@@ -1,17 +1,24 @@
 import "dotenv/config";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import {
-  type PrismaClient,
-  PrismaClient as PrismaClientCtor,
-  type Position,
-  TransactionItemAction,
-  TransactionType,
-} from "@prisma/client";
+import type { PrismaClient, Position } from "@prisma/client";
+import { TransactionItemAction, TransactionType } from "@prisma/client";
 
-import { DEV_USER_EMAIL } from "../src/lib/devUser.js";
+import { hashPassword } from "../src/lib/auth/password.js";
+import { prisma } from "../src/lib/prisma.js";
 
-export const SEEDMATE_USER_EMAIL = "seedmate@firstmate.local";
+// No dev-user shortcut: log in for real (password/OTP/magic-link/OAuth) in
+// local dev, same as production. Alex gets a known password (below) so the
+// E2E suite and manual testing can log in via POST /auth/password/login;
+// sam/jordan are just sample "other people" for crewmate-tagging/search.
+export const ALEX_EMAIL = "alex@firstmate.local";
+export const JORDAN_EMAIL = "jordan@firstmate.local";
+const SAMPLE_USERS = [
+  { id: "sample-user-1", email: ALEX_EMAIL, displayName: "Alex Rivera" },
+  { id: "sample-user-2", email: "sam@firstmate.local", displayName: "Sam Okafor" },
+  { id: "sample-user-3", email: JORDAN_EMAIL, displayName: "Jordan Lee" },
+];
+export const SEED_SAMPLE_PASSWORD = process.env.SEED_SAMPLE_PASSWORD ?? "sample-password-123";
+
 export const LEAGUE_A_NAME = "The Gridiron Gauntlet";
 export const LEAGUE_B_NAME = "Dynasty Dominators";
 export const LEAGUE_C_NAME = "Retired Legends";
@@ -48,6 +55,11 @@ export const WEEK_COUNT = 6;
 export const STARTER_COUNT = STARTER_SLOTS.length;
 export const BENCH_COUNT = BENCH_SIZE;
 
+/** Every league this seed creates is tagged with this externalLeagueId
+ * prefix, so re-seeding only ever resets its own data — never leagues a
+ * real user created through the admin UI. */
+const SEED_LEAGUE_ID_PREFIX = "seed-";
+
 function pick<T>(arr: T[], i: number): T {
   return arr[((i % arr.length) + arr.length) % arr.length];
 }
@@ -73,20 +85,25 @@ interface SeededMember {
 }
 
 export async function runSeed(prisma: PrismaClient): Promise<void> {
+  const sampleUsers = new Map<string, { id: string; email: string }>();
+  for (const user of SAMPLE_USERS) {
+    const passwordHash = user.email === ALEX_EMAIL ? await hashPassword(SEED_SAMPLE_PASSWORD) : undefined;
+    const created = await prisma.user.upsert({
+      where: { id: user.id },
+      update: passwordHash ? { passwordHash } : {},
+      create: { ...user, passwordHash },
+    });
+    sampleUsers.set(user.email, created);
+  }
+  const alex = sampleUsers.get(ALEX_EMAIL)!;
+  const jordan = sampleUsers.get(JORDAN_EMAIL)!;
+
   // Cascades from League.deleteMany() clear LeagueMember/Roster/RosterSlot/
   // Standing/Matchup/RosterMatchup/RosterMatchupSlot/Transaction/
-  // TransactionItem. Player must go after (RosterSlot etc. no longer
-  // reference it), User after that (League.createdBy is Restrict).
-  await prisma.league.deleteMany();
+  // TransactionItem. Player must go after (no other feature uses it, so it's
+  // safe to fully reset once the leagues referencing it are gone).
+  await prisma.league.deleteMany({ where: { externalLeagueId: { startsWith: SEED_LEAGUE_ID_PREFIX } } });
   await prisma.player.deleteMany();
-  await prisma.user.deleteMany();
-
-  const devUser = await prisma.user.create({
-    data: { email: DEV_USER_EMAIL, displayName: "Dev User" },
-  });
-  const seedmateUser = await prisma.user.create({
-    data: { email: SEEDMATE_USER_EMAIL, displayName: "Seedmate Owner" },
-  });
 
   const PLAYER_COUNT = 260;
   const players = await prisma.player.createManyAndReturn({
@@ -116,7 +133,7 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
         name: opts.name,
         platform: opts.platform,
         season: opts.season,
-        externalLeagueId: `seed-${opts.platform.toLowerCase()}-${opts.season}-${opts.name.replace(/\s+/g, "-").toLowerCase()}`,
+        externalLeagueId: `${SEED_LEAGUE_ID_PREFIX}${opts.platform.toLowerCase()}-${opts.season}-${opts.name.replace(/\s+/g, "-").toLowerCase()}`,
         isActive: true,
         createdById: opts.createdById,
       },
@@ -255,7 +272,7 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
     // (null leagueMemberId).
     const freeAgents = nextPlayers(6);
     const baseDate = new Date("2025-09-15T00:00:00Z");
-    const txnAdd = await prisma.transaction.create({
+    await prisma.transaction.create({
       data: {
         leagueId: league.id,
         type: TransactionType.ADD,
@@ -266,7 +283,7 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
         },
       },
     });
-    const txnDrop = await prisma.transaction.create({
+    await prisma.transaction.create({
       data: {
         leagueId: league.id,
         type: TransactionType.DROP,
@@ -287,7 +304,7 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
     const tradeMemberB = members[3 % members.length];
     const tradePlayerA = lineupByMember.get(tradeMemberA.id)![0].playerId;
     const tradePlayerB = lineupByMember.get(tradeMemberB.id)![0].playerId;
-    const txnTrade = await prisma.transaction.create({
+    await prisma.transaction.create({
       data: {
         leagueId: league.id,
         type: TransactionType.TRADE,
@@ -303,7 +320,7 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
         },
       },
     });
-    const txnWaiver = await prisma.transaction.create({
+    await prisma.transaction.create({
       data: {
         leagueId: league.id,
         type: TransactionType.WAIVER_CLAIM,
@@ -321,7 +338,7 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
         },
       },
     });
-    const txnFreeAgentDrop = await prisma.transaction.create({
+    await prisma.transaction.create({
       data: {
         leagueId: league.id,
         type: TransactionType.DROP,
@@ -332,11 +349,6 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
         },
       },
     });
-    void txnAdd;
-    void txnDrop;
-    void txnTrade;
-    void txnWaiver;
-    void txnFreeAgentDrop;
 
     return league;
   }
@@ -345,7 +357,7 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
     name: LEAGUE_A_NAME,
     platform: "ESPN",
     season: 2025,
-    createdById: devUser.id,
+    createdById: alex.id,
     teamCount: 8,
   });
 
@@ -353,9 +365,9 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
     name: LEAGUE_B_NAME,
     platform: "SLEEPER",
     season: 2025,
-    createdById: seedmateUser.id,
+    createdById: jordan.id,
     teamCount: 6,
-    matchedMemberUserId: { teamIndex: 0, userId: devUser.id },
+    matchedMemberUserId: { teamIndex: 0, userId: alex.id },
   });
 
   // Inactive league — kept lightweight, exists purely to prove the
@@ -365,9 +377,9 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
       name: LEAGUE_C_NAME,
       platform: "YAHOO",
       season: 2024,
-      externalLeagueId: "seed-yahoo-2024-retired-legends",
+      externalLeagueId: `${SEED_LEAGUE_ID_PREFIX}yahoo-2024-retired-legends`,
       isActive: false,
-      createdById: devUser.id,
+      createdById: alex.id,
     },
   });
   await prisma.leagueMember.createMany({
@@ -378,15 +390,14 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
     })),
   });
 
-  console.log("Seed complete:");
-  console.log(`  Users: dev=${devUser.email}, seedmate=${seedmateUser.email}`);
-  console.log(`  Players: ${players.length}`);
-  console.log(`  Leagues: ${leagueA.name} (active, dev=creator), ${leagueB.name} (active, dev=matched member), ${leagueC.name} (inactive)`);
+  console.log(`Seeded ${SAMPLE_USERS.length} sample users (login as ${ALEX_EMAIL} / "${SEED_SAMPLE_PASSWORD}").`);
+  console.log(`Seeded ${players.length} players.`);
+  console.log(
+    `Seeded leagues: ${leagueA.name} (active, alex=creator), ${leagueB.name} (active, alex=matched member), ${leagueC.name} (inactive).`,
+  );
 }
 
 async function main() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-  const prisma = new PrismaClientCtor({ adapter });
   try {
     await runSeed(prisma);
   } finally {
@@ -398,6 +409,6 @@ const isDirectRun = import.meta.url === `file://${process.argv[1]}`;
 if (isDirectRun) {
   main().catch((err) => {
     console.error(err);
-    process.exit(1);
+    process.exitCode = 1;
   });
 }

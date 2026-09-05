@@ -12,6 +12,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    setupFiles: ["./src/testSetup.ts"],
     globalSetup: ["src/test/globalSetup.ts"],
     env: {
       DATABASE_URL: process.env.TEST_DATABASE_URL,

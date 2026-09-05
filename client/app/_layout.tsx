@@ -1,12 +1,16 @@
-import "../global.css";
+import { StatusBar } from "expo-status-bar";
+import { PaperProvider } from "react-native-paper";
 
-import { Stack } from "expo-router";
+import { AuthGate } from "../src/auth/AuthGate";
+import { SessionProvider } from "../src/auth/SessionContext";
 
 export default function RootLayout() {
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ title: "First Mate" }} />
-      <Stack.Screen name="league/[id]" options={{ title: "" }} />
-    </Stack>
+    <PaperProvider>
+      <SessionProvider>
+        <AuthGate />
+        <StatusBar style="auto" />
+      </SessionProvider>
+    </PaperProvider>
   );
 }

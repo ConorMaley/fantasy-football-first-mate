@@ -1,36 +1,27 @@
-import { ScrollView, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { Stack } from "expo-router";
+import { IconButton } from "react-native-paper";
 
-import type { DashboardResponse } from "../src/api/types";
-import { useApiQuery } from "../src/api/useApiQuery";
-import { EmptyState } from "../src/components/EmptyState";
-import { ErrorState } from "../src/components/ErrorState";
-import { LeagueCard } from "../src/components/LeagueCard";
-import { LoadingState } from "../src/components/LoadingState";
+import { LogoutButton } from "../src/auth/LogoutButton";
+import { DashboardScreen } from "../src/screens/DashboardScreen";
 
-export default function DashboardScreen() {
-  const { data, status, error, refetch } = useApiQuery<DashboardResponse>("/dashboard");
+export default function IndexRoute() {
+  const router = useRouter();
 
   return (
-    <View className="flex-1 bg-slate-50">
-      <ScrollView className="flex-1">
-        <View className="p-4">
-          <Text className="mb-4 text-2xl font-bold text-slate-900">Your Leagues</Text>
-
-          {status === "loading" && <LoadingState label="Loading your leagues…" />}
-
-          {status === "error" && (
-            <ErrorState message={error?.message ?? "Unable to reach the server."} onRetry={refetch} />
-          )}
-
-          {status === "success" && data && data.leagues.length === 0 && (
-            <EmptyState message="No active leagues yet." />
-          )}
-
-          {status === "success" &&
-            data &&
-            data.leagues.map((league) => <LeagueCard key={league.id} league={league} />)}
-        </View>
-      </ScrollView>
-    </View>
+    <>
+      <Stack.Screen
+        options={{
+          title: "First Mate",
+          headerRight: () => (
+            <>
+              <IconButton icon="cog-outline" accessibilityLabel="Admin" onPress={() => router.push("/admin")} />
+              <LogoutButton />
+            </>
+          ),
+        }}
+      />
+      <DashboardScreen />
+    </>
   );
 }
